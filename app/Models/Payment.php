@@ -7,6 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Payment extends Model
 {
-    /** @use HasFactory<\Database\Factories\PaymentFactory> */
     use HasFactory;
+    protected $fillable = ['order_id', 'provider', 'provider_ref', 'amount', 'currency', 'status', 'received_at'];
+    protected $casts = ['received_at' => 'datetime'];
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
 }
+

@@ -7,6 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderAddress extends Model
 {
-    /** @use HasFactory<\Database\Factories\OrderAddressFactory> */
     use HasFactory;
+    public $timestamps = false;
+    protected $fillable = ['order_id', 'type', 'full_name', 'phone', 'line1', 'line2', 'city', 'state', 'country', 'postal_code'];
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
 }
+

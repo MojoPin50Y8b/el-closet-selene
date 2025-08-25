@@ -7,6 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Attribute extends Model
 {
-    /** @use HasFactory<\Database\Factories\AttributeFactory> */
     use HasFactory;
+    protected $fillable = ['name', 'slug', 'input_type', 'is_variant'];
+    protected $casts = ['is_variant' => 'boolean'];
+    public function values()
+    {
+        return $this->hasMany(AttributeValue::class);
+    }
 }
+

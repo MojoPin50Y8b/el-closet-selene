@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class NewsletterSubscriber extends Model
 {
-    /** @use HasFactory<\Database\Factories\NewsletterSubscriberFactory> */
     use HasFactory;
+    protected $fillable = ['email', 'is_active'];
+    protected $casts = ['is_active' => 'boolean'];
 }
+
