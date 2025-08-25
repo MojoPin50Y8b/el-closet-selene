@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+    --gondola: #1b1116;
+    --razzmatazz: #df0f7b;
+    --alabaster: #fbfbfb;
+    --oslo-gray: #9a9b9c;
+    --silver-sand: #c8cacb;
+    --pink-swan: #bfb1ba;
+    --lola: #dfd0d9;
+    --persian-rose: #fc249c;
+    --friar-gray: #7c7c74;
+    --mist-gray: #bcbdb4;
+}
