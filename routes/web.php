@@ -36,6 +36,9 @@ Route::name('shop.')->group(function () {
     Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
     Route::post('/cart/remove', [CartController::class, 'remove'])->name('cart.remove');
     Route::get('/cart/mini', [CartController::class, 'mini'])->name('cart.mini');
+    // contador del carrito (JSON)
+    Route::get('/cart/count', [CartController::class, 'count'])->name('cart.count');
+
 
     // checkout
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout');

@@ -14,25 +14,36 @@ class SearchController extends Controller
         $products = Product::with('images')
             ->when($q, fn($qq) => $qq->where('name', 'like', "%{$q}%"))
             ->paginate(12)->withQueryString();
-            
+
         return view('shop.search', compact('products', 'q'));
     }
 
     public function suggest(Request $request)
     {
-        $q = trim($request->get('q', ''));
-        if ($q === '')
-            return response()->json(['suggestions' => []]);
+        $q = trim((string) $request->query('q', ''));
+        if ($q === '') {
+            return response()->json(['data' => []]);
+        }
 
-        $items = Product::select('name', 'slug')
-            ->where('name', 'like', "%{$q}%")
-            ->limit(5)->get();
+        $products = Product::query()
+            ->where('status', 'published')
+            ->where(function ($x) use ($q) {
+                $x->where('name', 'like', "%{$q}%")
+                    ->orWhere('slug', 'like', "%{$q}%");
+            })
+            ->with(['images' => fn($img) => $img->orderBy('sort_order')->limit(1)])
+            ->take(8)
+            ->get();
 
-        return response()->json([
-            'suggestions' => $items->map(fn($p) => [
-                'text' => $p->name,
-                'url' => route('shop.product', $p->slug),
-            ])
-        ]);
+        $items = $products->map(function ($p) {
+            $thumb = optional($p->images->first())->url;
+            return [
+                'name' => $p->name,
+                'slug' => $p->slug,
+                'thumb' => $thumb,
+            ];
+        });
+
+        return response()->json(['data' => $items]);
     }
 }

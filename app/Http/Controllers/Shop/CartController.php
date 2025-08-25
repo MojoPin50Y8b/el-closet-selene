@@ -51,4 +51,22 @@ class CartController extends Controller
         $total = array_sum(array_map(fn($i) => $i['qty'] * $i['price'], $items));
         return view('shop.partials.mini-cart', compact('items', 'total'));
     }
+
+    public function count()
+    {
+        $sessionId = session()->getId();
+
+        $count = \DB::table('cart_items')
+            ->join('carts', 'cart_items.cart_id', '=', 'carts.id')
+            ->where('carts.status', 'active')
+            ->when(
+                auth()->id(),
+                fn($q) => $q->where('carts.user_id', auth()->id()),
+                fn($q) => $q->whereNull('carts.user_id')->where('carts.session_id', $sessionId)
+            )
+            ->sum('qty');
+
+        return response()->json(['count' => (int) $count]);
+    }
+
 }

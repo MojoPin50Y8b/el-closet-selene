@@ -1,15 +1,23 @@
 @props(['product'])
 
-<a href="{{ route('shop.product', ['slug' => $product->slug ?? 'producto-demo']) }}"
-    class="block rounded-xl border p-3 hover:shadow">
-    <div class="aspect-[4/5] bg-silver-sand/40 rounded mb-3 overflow-hidden">
-        @if(!empty($product->images[0]?->url))
-            <img src="{{ $product->images[0]->url }}" alt="{{ $product->name }}" class="w-full h-full object-cover">
-        @endif
+@php
+    $img = $product->images->first()->url ?? 'https://placehold.co/600x750';
+    $url = route('shop.product', ['slug' => $product->slug]);
+@endphp
+
+<a href="{{ $url }}" class="block rounded-xl border p-3 hover:shadow">
+    <div class="aspect-[4/5] bg-silver-sand/30 rounded mb-3 overflow-hidden">
+        <img src="{{ $img }}" alt="{{ $product->name }}" class="w-full h-full object-cover">
     </div>
-    <div class="text-sm text-friar-gray">{{ $product->brand->name ?? 'Marca' }}</div>
-    <div class="font-medium">{{ $product->name ?? 'Producto' }}</div>
-    <div class="text-persian-rose font-semibold">
-        ${{ number_format($product->price ?? 0, 2) }}
-    </div>
+    <div class="text-sm text-oslo-gray">{{ $product->brand->name ?? '' }}</div>
+    <div class="font-medium">{{ $product->name }}</div>
+
+    @if(!empty($product->sale_price))
+        <div class="mt-1">
+            <span class="font-semibold text-persian-rose">${{ number_format($product->sale_price, 2) }}</span>
+            <span class="text-friar-gray line-through ml-2">${{ number_format($product->price, 2) }}</span>
+        </div>
+    @else
+        <div class="mt-1 font-semibold">${{ number_format($product->price ?? 0, 2) }}</div>
+    @endif
 </a>
