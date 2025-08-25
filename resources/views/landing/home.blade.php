@@ -10,7 +10,7 @@
             <p class="text-oslo-gray mb-6">
                 Rebajas de temporada · Envíos a todo México y Sudamérica
             </p>
-            <a href="{{ route('landing.sale') }}"
+            <a href="{{ route('shop.sale') }}"
                 class="inline-block bg-persian-rose text-white px-6 py-3 rounded shadow hover:opacity-90">
                 Ver Ofertas
             </a>
@@ -20,9 +20,11 @@
     {{-- CATEGORÍAS DESTACADAS --}}
     <section class="max-w-7xl mx-auto px-4">
         <h2 class="text-2xl font-semibold mb-4">Categorías destacadas</h2>
+
+        @php use Illuminate\Support\Str; @endphp
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            @foreach (['Hombre', 'Mujer', 'Niños/Niñas', 'Accesorios'] as $cat)
-                <a href="{{ route('landing.catalog') }}"
+            @foreach (['Hombre', 'Mujer', 'Niños Niñas', 'Accesorios'] as $cat)
+                <a href="{{ route('shop.category', ['slug' => Str::slug($cat)]) }}"
                     class="h-28 rounded-xl bg-silver-sand/40 hover:bg-silver-sand/60 flex items-center justify-center">
                     {{ $cat }}
                 </a>
@@ -34,7 +36,7 @@
     <section class="max-w-7xl mx-auto px-4 mt-10">
         <h2 class="text-2xl font-semibold mb-4">Novedades</h2>
 
-        @if(isset($newProducts) && count($newProducts))
+        @if(isset($newProducts) && $newProducts->count())
             <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                 @foreach($newProducts as $product)
                     <x-landing.product-card :product="$product" />
