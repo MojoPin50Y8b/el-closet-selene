@@ -102,39 +102,42 @@ window.notifyCartUpdated = () => {
 
 // --- interceptar "Añadir al carrito" via AJAX ---
 function setupAddToCart() {
+    // --- ADD TO CART (forms con [data-cart-add]) ---
     document.addEventListener('submit', async (e) => {
-        if (!e.target.matches('.js-add-to-cart')) return;
+        const form = e.target;
+        if (!form.matches('[data-cart-add]')) return;
+
         e.preventDefault();
 
-        const form = e.target;
-        const action = form.getAttribute('action') || '/cart/add';
-        const formData = new FormData(form);
+        const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const body = new FormData(form);
 
         try {
-            const res = await fetch(action, {
+            const res = await fetch(form.action, {
                 method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document
-                        .querySelector('meta[name="csrf-token"]')
-                        ?.getAttribute('content') ?? ''
-                },
-                body: formData
+                headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+                body,
             });
 
-            if (!res.ok) throw new Error('Add to cart failed');
+            // Algunas rutas devuelven redirect; si es así, fuerza reload suave
+            if (res.redirected) {
+                window.dispatchEvent(new Event('cart:updated'));
+                return;
+            }
 
-            // Notifica al header que refresque el badge
-            window.notifyCartUpdated();
+            const data = await res.json().catch(() => ({}));
 
-            // (opcional) feedback visual
-            form.querySelector('[type="submit"]')?.classList.add('opacity-70');
-            setTimeout(() => form.querySelector('[type="submit"]')?.classList.remove('opacity-70'), 800);
+            // Dispara el refresco del contador del carrito (tú ya lo escuchas en header)
+            window.dispatchEvent(new Event('cart:updated'));
+
+            // (opcional) mini feedback
+            console.log('Añadido al carrito', data);
         } catch (err) {
-            console.error(err);
-            // (opcional) mostrar toast/error
+            console.error('Error al añadir al carrito', err);
+            alert('No se pudo añadir al carrito. Intenta de nuevo.');
         }
     });
+
 }
 
 // --- interceptar "Quitar del carrito" via AJAX ---

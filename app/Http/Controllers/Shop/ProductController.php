@@ -9,11 +9,12 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
-    public function show(string $slug): View
+    public function show(string $slug)
     {
         $product = Product::with([
             'images' => fn($q) => $q->orderBy('sort_order'),
-            'variants' => fn($q) => $q->with(['values.attribute', 'values.value']),
+            'variants.values.attribute',
+            'variants.values.value',
         ])->where('slug', $slug)->firstOrFail();
 
         $related = Product::with('images')
@@ -22,9 +23,7 @@ class ProductController extends Controller
             ->take(8)
             ->get();
 
-        // Gracias al alias de namespace 'shop' -> 'resources/views/landing',
-        // la vista 'shop.product' resolverá a resources/views/landing/product.blade.php
-        return view('shop.product', compact('product', 'related'));
+        return view('landing.product.show', compact('product', 'related'));
     }
 
     /** Atajo: /nuevos -> /buscar?sort=new */
