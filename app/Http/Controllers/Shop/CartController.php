@@ -6,14 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use App\Models\Product;
 
 class CartController extends Controller
 {
-    /**
-     * Página del carrito (si no tienes la Blade, este método no es crítico
-     * para el flujo de “Añadir al carrito” y el contador).
-     */
     public function index()
     {
         $cartId = $this->activeCartId();
@@ -29,82 +24,80 @@ class CartController extends Controller
                 'products.slug as product_slug'
             )
             ->join('products', 'products.id', '=', 'cart_items.product_id')
-            ->leftJoin('product_variants', 'product_variants.id', '=', 'cart_items.variant_id')
             ->where('cart_items.cart_id', $cartId)
             ->get();
 
-        $total = $items->reduce(fn ($c, $i) => $c + ($i->qty * (float) $i->price), 0.0);
+        $total = $items->reduce(fn($c, $i) => $c + ($i->qty * (float) $i->price), 0.0);
 
-        // Ajusta la vista si es necesario; no afecta al add/count
         return view('shop.cart', compact('items', 'total'));
     }
 
     /**
-     * Añadir al carrito (JSON).
-     * Espera: { product_id, variant_id|null, qty }
+     * Espera JSON: { product_id, variant_id|null, qty }
      */
     public function add(Request $request): JsonResponse
     {
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'variant_id' => ['nullable', 'integer', 'exists:product_variants,id'],
-            'qty'        => ['required', 'integer', 'min:1'],
+            'qty' => ['required', 'integer', 'min:1'],
         ]);
 
-        $cartId  = $this->activeCartId();
-        $product = Product::findOrFail($data['product_id']);
+        $cartId = $this->activeCartId();
 
-        // Obtén precio unitario (sale_price > price) de la variante o del producto
-        $variant = null;
+        // Determinar precio unitario (COALESCE sale_price, price)
         if (!empty($data['variant_id'])) {
-            $variant = DB::table('product_variants')
+            $v = DB::table('product_variants')
                 ->select('price', 'sale_price')
                 ->where('id', $data['variant_id'])
                 ->first();
+            $unit = $v ? ($v->sale_price ?? $v->price ?? 0) : 0;
+        } else {
+            // si no viene variante, tomamos la variante más barata del producto
+            $v = DB::table('product_variants')
+                ->select('price', 'sale_price')
+                ->where('product_id', $data['product_id'])
+                ->orderByRaw('COALESCE(sale_price, price) asc')
+                ->first();
+            // como último recurso, usa columnas de products si existen
+            if (!$v) {
+                $p = DB::table('products')->select('price', 'sale_price')
+                    ->where('id', $data['product_id'])->first();
+            }
+            $unit = $v ? ($v->sale_price ?? $v->price ?? 0) : (($p->sale_price ?? $p->price ?? 0) ?? 0);
         }
 
-        $unitPrice = $variant->sale_price
-            ?? $variant->price
-            ?? $product->sale_price
-            ?? $product->price
-            ?? 0;
+        // upsert por combinación (cart_id, product_id, variant_id)
+        $row = DB::table('cart_items')->where([
+            'cart_id' => $cartId,
+            'product_id' => $data['product_id'],
+            'variant_id' => $data['variant_id'] ?? null,
+        ])->first();
 
-        // upsert simple (suma cantidad si ya existe la misma combinación)
-        DB::transaction(function () use ($cartId, $data, $unitPrice) {
-            $row = DB::table('cart_items')->where([
-                'cart_id'    => $cartId,
+        if ($row) {
+            DB::table('cart_items')->where('id', $row->id)->update([
+                'qty' => (int) $row->qty + (int) $data['qty'],
+                'unit_price' => $row->unit_price ?: $unit, // asegura valor
+                'updated_at' => now(),
+            ]);
+        } else {
+            DB::table('cart_items')->insert([
+                'cart_id' => $cartId,
                 'product_id' => $data['product_id'],
                 'variant_id' => $data['variant_id'] ?? null,
-            ])->first();
-
-            if ($row) {
-                DB::table('cart_items')->where('id', $row->id)->update([
-                    'qty'        => (int) $row->qty + (int) $data['qty'],
-                    'updated_at' => now(),
-                ]);
-            } else {
-                DB::table('cart_items')->insert([
-                    'cart_id'    => $cartId,
-                    'product_id' => $data['product_id'],
-                    'variant_id' => $data['variant_id'] ?? null,
-                    'qty'        => (int) $data['qty'],
-                    'unit_price' => $unitPrice,            // << clave para evitar el 1364
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        });
+                'qty' => (int) $data['qty'],
+                'unit_price' => $unit,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         return response()->json([
-            'ok'    => true,
-            'count' => $this->itemsCount($cartId),
+            'ok' => true,
+            'count' => (int) $this->itemsCount($cartId),
         ]);
     }
 
-    /**
-     * Quitar una línea del carrito (JSON).
-     * Espera: { id } donde "id" es el ID de la fila en cart_items.
-     */
     public function remove(Request $request): JsonResponse
     {
         $payload = $request->validate([
@@ -119,14 +112,11 @@ class CartController extends Controller
             ->delete();
 
         return response()->json([
-            'ok'    => true,
-            'count' => $this->itemsCount($cartId),
+            'ok' => true,
+            'count' => (int) $this->itemsCount($cartId),
         ]);
     }
 
-    /**
-     * Mini-carrito (HTML parcial).
-     */
     public function mini()
     {
         $cartId = $this->activeCartId();
@@ -140,26 +130,22 @@ class CartController extends Controller
                 'products.slug as product_slug'
             )
             ->join('products', 'products.id', '=', 'cart_items.product_id')
-            ->leftJoin('product_variants', 'product_variants.id', '=', 'cart_items.variant_id')
             ->where('cart_items.cart_id', $cartId)
             ->get();
 
-        $total = $items->reduce(fn ($c, $i) => $c + ($i->qty * (float) $i->price), 0.0);
+        $total = $items->reduce(fn($c, $i) => $c + ($i->qty * (float) $i->price), 0.0);
 
         return view('shop.partials.mini-cart', compact('items', 'total'));
     }
 
-    /**
-     * Contador del carrito (JSON). Lo usas en app.js para #cart-count.
-     */
     public function count(): JsonResponse
     {
-        return response()->json(['count' => $this->itemsCount($this->activeCartId())]);
+        $count = $this->itemsCount($this->activeCartId());
+        return response()->json(['count' => (int) $count]);
     }
 
-    // ======================= helpers privados =======================
+    // -------------------- helpers --------------------
 
-    /** Obtiene (o crea) el carrito "active" para el usuario o la sesión. */
     private function activeCartId(): int
     {
         $sessionId = session()->getId();
@@ -175,10 +161,10 @@ class CartController extends Controller
         $id = (int) $query->value('id');
 
         if (!$id) {
-            $id = (int) DB::table('carts')->insertGetId([
-                'user_id'    => auth()->id(),
+            $id = DB::table('carts')->insertGetId([
+                'user_id' => auth()->id(),  // null si guest
                 'session_id' => $sessionId,
-                'status'     => 'active',
+                'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -187,11 +173,8 @@ class CartController extends Controller
         return $id;
     }
 
-    /** Suma de cantidades del carrito. */
     private function itemsCount(int $cartId): int
     {
-        return (int) DB::table('cart_items')
-            ->where('cart_id', $cartId)
-            ->sum('qty');
+        return (int) DB::table('cart_items')->where('cart_id', $cartId)->sum('qty');
     }
 }

@@ -5,17 +5,40 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
 
 class SearchController extends Controller
 {
     public function index(Request $request)
     {
-        $q = trim($request->get('q', ''));
-        $products = Product::with('images')
-            ->when($q, fn($qq) => $qq->where('name', 'like', "%{$q}%"))
-            ->paginate(12)->withQueryString();
+        $q = trim((string) $request->query('q', ''));
+        $sort = (string) $request->query('sort', '');
+        $tag = (string) $request->query('tag', '');
 
-        return view('shop.search', compact('products', 'q'));
+        $query = Product::query()->with(['images']);
+
+        if ($q !== '') {
+            $query->where('name', 'like', "%{$q}%");
+        }
+
+        if ($tag === 'sale') {
+            $query->whereHas('variants', fn($qq) => $qq->whereNotNull('sale_price'));
+        }
+
+        if ($sort === 'new') {
+            $query->latest('products.created_at');
+        } else {
+            $query->orderBy('products.id', 'desc');
+        }
+
+        $products = $query->paginate(12)->withQueryString();
+
+        return view('landing.catalog.index', [
+            'products' => $products,
+            'q' => $q,
+            'sort' => $sort,
+            'tag' => $tag,
+        ]);
     }
 
     public function suggest(Request $request)
