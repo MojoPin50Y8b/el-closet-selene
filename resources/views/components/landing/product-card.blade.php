@@ -1,23 +1,31 @@
 @props(['product'])
 
 @php
-    $img = $product->images->first()->url ?? 'https://placehold.co/600x750';
+    $img = optional($product->images->first())->url ?? '';
     $url = route('shop.product', ['slug' => $product->slug]);
+    $price = optional($product->variants->first())->sale_price
+        ?? optional($product->variants->first())->price
+        ?? ($product->price ?? null);
 @endphp
 
-<a href="{{ $url }}" class="block rounded-xl border p-3 hover:shadow">
-    <div class="aspect-[4/5] bg-silver-sand/30 rounded mb-3 overflow-hidden">
-        <img src="{{ $img }}" alt="{{ $product->name }}" class="w-full h-full object-cover">
-    </div>
-    <div class="text-sm text-oslo-gray">{{ $product->brand->name ?? '' }}</div>
-    <div class="font-medium">{{ $product->name }}</div>
+<article class="border rounded-xl overflow-hidden">
+    <a href="{{ $url }}" class="block aspect-[4/5] bg-silver-sand/40">
+        @if($img)
+            <img src="{{ $img }}" alt="{{ $product->name }}" class="w-full h-full object-cover">
+        @endif
+    </a>
+    <div class="p-3">
+        <a href="{{ $url }}" class="block font-medium mb-1 line-clamp-1">{{ $product->name }}</a>
+        @if($price)
+            <div class="text-sm mb-3">${{ number_format($price, 2) }}</div>
+        @endif
 
-    @if(!empty($product->sale_price))
-        <div class="mt-1">
-            <span class="font-semibold text-persian-rose">${{ number_format($product->sale_price, 2) }}</span>
-            <span class="text-friar-gray line-through ml-2">${{ number_format($product->price, 2) }}</span>
+        <div class="flex items-center gap-2">
+            <a href="{{ $url }}" class="px-3 py-2 border rounded">Ver</a>
+            <button class="btn-primary px-3 py-2 rounded js-add-to-cart" data-url="{{ route('shop.cart.add') }}"
+                data-product="{{ $product->id }}" data-qty="1">
+                Añadir
+            </button>
         </div>
-    @else
-        <div class="mt-1 font-semibold">${{ number_format($product->price ?? 0, 2) }}</div>
-    @endif
-</a>
+    </div>
+</article>

@@ -3,93 +3,84 @@
 @section('title', $product->name)
 
 @section('content')
-    <div class="max-w-7xl mx-auto px-4 py-8 grid md:grid-cols-2 gap-8">
-        {{-- Galería --}}
+    <section class="max-w-7xl mx-auto px-4 py-8 grid md:grid-cols-2 gap-8">
+
+        {{-- GALERÍA --}}
         <div>
-            @php
-                $main = $product->images->first();
-            @endphp
-
-            <div class="aspect-[4/5] bg-silver-sand/30 rounded-xl overflow-hidden mb-4">
-                @if($main)
-                    <img src="{{ $main->url ?? $main->image_url }}" alt="{{ $product->name }}"
-                        class="w-full h-full object-cover">
-                @endif
-            </div>
-
-            @if($product->images->count() > 1)
-                <div class="grid grid-cols-4 gap-2">
-                    @foreach($product->images->skip(1) as $img)
-                        <div class="aspect-[4/5] rounded overflow-hidden bg-silver-sand/30">
-                            <img src="{{ $img->url ?? $img->image_url }}" class="w-full h-full object-cover" alt="">
-                        </div>
+            @php $imgs = $product->images ?? collect(); @endphp
+            @if($imgs->count())
+                <div class="aspect-[4/5] rounded-xl overflow-hidden border">
+                    <img src="{{ $imgs->first()->url ?? '' }}" alt="{{ $product->name }}" class="w-full h-full object-cover"
+                        id="main-img">
+                </div>
+                <div class="mt-3 grid grid-cols-5 gap-2">
+                    @foreach($imgs as $img)
+                        <button type="button" class="border rounded overflow-hidden thumb" data-src="{{ $img->url }}">
+                            <img src="{{ $img->url }}" alt="" class="w-full h-16 object-cover">
+                        </button>
                     @endforeach
                 </div>
+            @else
+                <div class="aspect-[4/5] rounded-xl bg-silver-sand/40"></div>
             @endif
         </div>
 
-        {{-- Info --}}
+        {{-- INFO / VARIANTES --}}
         <div>
-            <h1 class="text-2xl md:text-3xl font-semibold mb-2">{{ $product->name }}</h1>
+            <h1 class="text-2xl font-semibold">{{ $product->name }}</h1>
 
+            {{-- Precio (simple; ajusta si usas precios en variantes) --}}
             @php
-                $minPrice = $product->variants->min('price');
-                $minSale = $product->variants->whereNotNull('sale_price')->min('sale_price');
+                $base = optional($product->variants->first())->price ?? $product->price ?? null;
+                $sale = optional($product->variants->first())->sale_price ?? null;
             @endphp
 
-            <div class="mb-4">
-                @if($minSale)
-                    <span class="text-2xl font-bold text-persian-rose mr-2">${{ number_format($minSale, 2) }}</span>
-                    <span class="text-oslo-gray line-through">${{ number_format($minPrice, 2) }}</span>
-                @else
-                    <span class="text-2xl font-bold">${{ number_format($minPrice, 2) }}</span>
+            <div class="mt-2">
+                @if($sale)
+                    <span class="text-2xl font-semibold mr-2">${{ number_format($sale, 2) }}</span>
+                    <span class="text-friar-gray line-through">${{ number_format($base, 2) }}</span>
+                    <span class="ml-2 text-persian-rose font-medium">Sale</span>
+                @elseif($base)
+                    <span class="text-2xl font-semibold">${{ number_format($base, 2) }}</span>
                 @endif
             </div>
 
-            <p class="text-friar-gray mb-6">{{ $product->short_description ?? '' }}</p>
+            {{-- Selección de variante (si aplica) --}}
+            @if($product->variants->count())
+                <label class="block mt-6 text-sm text-gray-600">Variante</label>
+                <select id="variant-select" class="border rounded w-full p-2">
+                    @foreach($product->variants as $v)
+                        @php
+                            $label = $v->values->map(function ($vv) {
+                                return ($vv->attribute->name ?? '') . ': ' . ($vv->value->name ?? '');
+                            })->join(' / ');
+                            $label = $label ?: 'Default';
+                            $price = $v->sale_price ?? $v->price;
+                        @endphp
+                        <option value="{{ $v->id }}" data-price="{{ $price }}">
+                            {{ $label }} — ${{ number_format($price, 2) }}
+                        </option>
+                    @endforeach
+                </select>
+            @endif
 
-            {{-- Formulario Añadir al carrito --}}
-            <form method="POST" action="{{ route('shop.cart.add') }}" class="space-y-4" data-cart-add>
-                @csrf
+            <div class="mt-4 flex items-center gap-3">
+                <input id="qty-input" type="number" min="1" value="1" class="w-20 border rounded p-2">
+                <button class="btn-primary px-4 py-2 rounded js-add-to-cart" data-url="{{ route('shop.cart.add') }}"
+                    data-product="{{ $product->id }}" data-variant-el="#variant-select" data-qty-el="#qty-input">
+                    Añadir al carrito
+                </button>
+                <button class="px-4 py-2 rounded border">❤ Wishlist</button>
+            </div>
 
-                {{-- Variante: mostramos un solo select compuesto (size/color) --}}
-                @if($product->variants->count())
-                    <label class="block text-sm mb-1">Variante</label>
-                    <select name="variant_id" class="border rounded px-3 py-2 w-full" required>
-                        @foreach($product->variants as $v)
-                            @php
-                                $label = $v->values->map(fn($vv) => $vv->attribute->name . ': ' . $vv->value->name)->join(' · ');
-                                $price = $v->sale_price ?? $v->price;
-                            @endphp
-                            <option value="{{ $v->id }}">
-                                {{ $label ?: 'Variante ' . $v->id }} — ${{ number_format($price, 2) }}
-                            </option>
-                        @endforeach
-                    </select>
-                @endif
+            {{-- DESCRIPCIÓN --}}
+            @if($product->description)
+                <div class="prose mt-6 max-w-none">{!! nl2br(e($product->description)) !!}</div>
+            @endif
 
-                <div class="flex items-center gap-3">
-                    <label class="text-sm">Cantidad</label>
-                    <input type="number" name="qty" value="1" min="1" class="border rounded px-3 py-2 w-24">
-                </div>
-
-                <input type="hidden" name="product_id" value="{{ $product->id }}">
-
-                <div class="flex gap-3">
-                    <button type="submit" class="bg-black text-white px-6 py-3 rounded hover:opacity-90">
-                        Añadir al carrito
-                    </button>
-
-                    {{-- Wishlist (placeholder) --}}
-                    <button type="button" class="border px-4 py-3 rounded text-oslo-gray" disabled title="Próximamente">
-                        ♥ Wishlist
-                    </button>
-                </div>
-            </form>
-
-            {{-- Productos relacionados --}}
+            {{-- RELACIONADOS --}}
             @if($related->count())
-                <h2 class="mt-10 mb-4 text-lg font-semibold">También te puede interesar</h2>
+                <h2 class="mt-10 mb-4 text-lg font-semibold">También te puede gustar</h2>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     @foreach($related as $rp)
                         <x-landing.product-card :product="$rp" />
@@ -97,5 +88,16 @@
                 </div>
             @endif
         </div>
-    </div>
+    </section>
+
+    {{-- mini script para thumbs (sin dependencias) --}}
+    <script>
+        document.querySelectorAll('.thumb').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const src = btn.dataset.src;
+                const main = document.getElementById('main-img');
+                if (src && main) main.src = src;
+            });
+        });
+    </script>
 @endsection

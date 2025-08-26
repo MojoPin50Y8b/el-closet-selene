@@ -4,8 +4,14 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    {{-- Necesario para fetch POST (lo lee app.js) --}}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <title>@yield('title', 'El Clóset de Selene')</title>
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
     <style>
         :root {
             --gondola: #1b1116;

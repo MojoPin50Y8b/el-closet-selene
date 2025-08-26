@@ -53,22 +53,24 @@
             <a href="{{ route('shop.search', ['filter' => 'categories']) }}" class="text-sm underline">Ver todas</a>
         </div>
 
+        @php use Illuminate\Support\Str; @endphp
+
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            @php use Illuminate\Support\Str; @endphp
             @forelse(($categories ?? []) as $cat)
                 <a href="{{ route('shop.category', ['slug' => $cat->slug]) }}"
                     class="h-28 rounded-xl bg-silver-sand/40 hover:bg-silver-sand/60 flex items-center justify-center">
                     {{ $cat->name }}
                 </a>
             @empty
-                @foreach (['Hombre', 'Mujer', 'Niños/Niñas', 'Accesorios'] as $cat)
-                    <a href="{{ route('shop.category', ['slug' => Str::slug($cat)]) }}"
+                @foreach (['Hombre', 'Mujer', 'Niños/Niñas', 'Accesorios'] as $label)
+                    <a href="{{ route('shop.category', ['slug' => Str::slug($label)]) }}"
                         class="h-28 rounded-xl bg-silver-sand/40 hover:bg-silver-sand/60 flex items-center justify-center">
-                        {{ $cat }}
+                        {{ $label }}
                     </a>
                 @endforeach
             @endforelse
         </div>
+
     </section>
 
     {{-- NOVEDADES --}}

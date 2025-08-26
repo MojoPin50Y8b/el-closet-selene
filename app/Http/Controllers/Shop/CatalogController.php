@@ -9,16 +9,16 @@ use App\Models\Product;
 
 class CatalogController extends Controller
 {
-    public function category(string $slug, Request $request)
+    public function category(string $slug)
     {
         $category = Category::where('slug', $slug)->firstOrFail();
 
         $products = Product::with('images')
             ->where('main_category_id', $category->id)
-            ->latest()                // puedes cambiar por sort dinámico más adelante
+            ->latest()
             ->paginate(12)
             ->withQueryString();
 
-        return view('landing.catalog.index', compact('category', 'products'));
+        return view('shop::catalog.category', compact('category', 'products'));
     }
 }

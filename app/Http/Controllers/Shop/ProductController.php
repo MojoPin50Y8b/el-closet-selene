@@ -20,10 +20,10 @@ class ProductController extends Controller
         $related = Product::with('images')
             ->where('id', '<>', $product->id)
             ->where('main_category_id', $product->main_category_id)
-            ->take(8)
-            ->get();
+            ->take(8)->get();
 
-        return view('landing.product.show', compact('product', 'related'));
+        // Nota: usamos el namespace 'shop::' que aliaste a resources/views/landing
+        return view('shop::product.show', compact('product', 'related'));
     }
 
     /** Atajo: /nuevos -> /buscar?sort=new */
