@@ -20,8 +20,9 @@
 
         {{-- MENÚ --}}
         <nav class="ml-auto hidden md:flex gap-4">
-            <a href="{{ route('shop.category', ['slug' => 'hombre']) }}">Hombres</a>
-            <a href="{{ route('shop.category', ['slug' => 'mujer']) }}">Mujeres</a>
+            {{-- Slugs unificados (plural) --}}
+            <a href="{{ route('shop.category', ['slug' => 'hombres']) }}">Hombres</a>
+            <a href="{{ route('shop.category', ['slug' => 'mujeres']) }}">Mujeres</a>
             <a href="{{ route('shop.category', ['slug' => 'ninos-ninas']) }}">Niños/Niñas</a>
             <a href="{{ route('shop.category', ['slug' => 'accesorios']) }}">Accesorios</a>
             <a href="{{ route('shop.new') }}">Nuevos</a>
@@ -33,7 +34,6 @@
             {{-- Cuenta --}}
             @auth
                 <a href="{{ route('profile.edit') }}" title="Mi cuenta" class="p-2 rounded hover:bg-gray-100">
-                    {{-- ícono usuario --}}
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
