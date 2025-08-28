@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Database\Eloquent\Builder;
 
 class SearchController extends Controller
 {
@@ -18,30 +19,38 @@ class SearchController extends Controller
      */
     public function index(Request $request)
     {
-        $q    = trim((string) $request->query('q', ''));
-        $tag  = (string) $request->query('tag', '');
+        $q = trim((string) $request->query('q', ''));
         $sort = (string) $request->query('sort', '');
+        $tag = (string) $request->query('tag', '');
 
         $query = Product::query()
             ->with(['images', 'variants']);
 
-        // texto
+        // Texto libre
         if ($q !== '') {
-            $query->where(function ($qq) use ($q) {
-                $qq->where('name', 'like', "%{$q}%")
-                   ->orWhere('description', 'like', "%{$q}%");
+            $query->where(function (Builder $w) use ($q) {
+                $w->where('name', 'like', "%{$q}%")
+                    ->orWhere('slug', 'like', "%{$q}%")
+                    ->orWhere('description', 'like', "%{$q}%");
             });
         }
 
-        // ofertas
+        // Tag: sale  -> sale_price en VARIANTES (y opcionalmente ventana de fechas)
         if ($tag === 'sale') {
-            $query->where(function ($qq) {
-                $qq->whereNotNull('sale_price')
-                   ->orWhereHas('variants', fn($v) => $v->whereNotNull('sale_price'));
+            $now = now();
+            $query->whereHas('variants', function (Builder $v) use ($now) {
+                $v->whereNotNull('sale_price')
+                    ->where(function (Builder $d) use ($now) {
+                        // Activa si sin fechas o dentro de ventana
+                        $d->whereNull('sale_starts_at')->orWhere('sale_starts_at', '<=', $now);
+                    })
+                    ->where(function (Builder $d) use ($now) {
+                        $d->whereNull('sale_ends_at')->orWhere('sale_ends_at', '>=', $now);
+                    });
             });
         }
 
-        // orden
+        // Orden
         if ($sort === 'new') {
             $query->latest('products.created_at');
         } else {
@@ -50,18 +59,18 @@ class SearchController extends Controller
 
         $products = $query->paginate(12)->withQueryString();
 
-        $title = $q !== ''
-            ? "Resultados: \"{$q}\""
-            : ($tag === 'sale' ? 'Ofertas'
-                : ($sort === 'new' ? 'Novedades' : 'Búsqueda'));
+        // Título amigable para la vista genérica
+        $title =
+            $tag === 'sale' ? 'Ofertas' :
+            ($q !== '' ? "Resultados para “{$q}”" : 'Resultados');
 
+        // Usa tu vista de listado genérico
         return view('landing.catalog.index', [
-            'title'    => $title,
+            'title' => $title,
             'products' => $products,
-            // por si quieres reutilizar en la vista
-            'q'        => $q,
-            'tag'      => $tag,
-            'sort'     => $sort,
+            'filters' => compact('q', 'sort', 'tag'),
+            // Para que la blade no truene si intenta usar $category:
+            'category' => null,
         ]);
     }
 
@@ -86,8 +95,8 @@ class SearchController extends Controller
         $data = $items->map(function ($p) {
             $img = optional($p->images->first())->url;
             return [
-                'slug'  => $p->slug,
-                'name'  => $p->name,
+                'slug' => $p->slug,
+                'name' => $p->name,
                 'thumb' => $img ?: null,
             ];
         });
