@@ -1,15 +1,22 @@
 @extends('landing.layouts.app')
 
-@section('title', $category->name)
+@section('title', $title ?? 'Búsqueda')
 
 @section('content')
-    <div class="max-w-7xl mx-auto px-4 py-8">
+    <section class="max-w-7xl mx-auto px-4 py-8">
         <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-semibold">{{ $category->name }}</h1>
-            {{-- aquí más adelante agregaremos filtros/sort --}}
+            <h1 class="text-2xl font-semibold">
+                {{ $title ?? 'Búsqueda' }}
+            </h1>
+
+            {{-- atajo opcional para refinar --}}
+            <form action="{{ route('shop.search') }}" method="GET" class="hidden md:block">
+                <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="Buscar productos…"
+                    class="border rounded-xl px-4 py-2 outline-none focus:ring">
+            </form>
         </div>
 
-        @if($products->count())
+        @if(($products ?? null) && $products->count())
             <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                 @foreach($products as $product)
                     <x-landing.product-card :product="$product" />
@@ -20,7 +27,7 @@
                 {{ $products->links() }}
             </div>
         @else
-            <p class="text-oslo-gray">No hay productos en esta categoría.</p>
+            <p class="text-friar-gray">No encontramos resultados.</p>
         @endif
-    </div>
+    </section>
 @endsection

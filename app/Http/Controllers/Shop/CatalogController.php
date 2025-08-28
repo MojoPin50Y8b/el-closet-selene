@@ -87,7 +87,7 @@ class CatalogController extends Controller
 
         // ----- Facets (tallas / colores) con tu esquema -----
 
-        // TALLAS: variant_values.attribute_value_id -> attribute_values.id
+        // TALLAS (size/talla)
         $sizes = DB::table('variant_values as vv')
             ->join('attributes as a', 'vv.attribute_id', '=', 'a.id')
             ->join('attribute_values as av', 'vv.attribute_value_id', '=', 'av.id')
@@ -95,12 +95,12 @@ class CatalogController extends Controller
             ->join('products as p', 'pv.product_id', '=', 'p.id')
             ->where('p.main_category_id', $category->id)
             ->whereIn('a.slug', ['size', 'talla'])
-            // usamos av.value como label y como "slug" del filtro
-            ->selectRaw('DISTINCT av.value as label, av.value as slug')
-            ->orderBy('label')
+            ->selectRaw('DISTINCT av.value AS name,
+                 COALESCE(av.code, LOWER(REPLACE(av.value, " ", "-"))) AS slug')
+            ->orderBy('name')
             ->get();
 
-        // COLORES: mostramos label (value), y por si tienes code/hex, los exponemos
+        // COLORES (color)
         $colors = DB::table('variant_values as vv')
             ->join('attributes as a', 'vv.attribute_id', '=', 'a.id')
             ->join('attribute_values as av', 'vv.attribute_value_id', '=', 'av.id')
@@ -108,8 +108,9 @@ class CatalogController extends Controller
             ->join('products as p', 'pv.product_id', '=', 'p.id')
             ->where('p.main_category_id', $category->id)
             ->where('a.slug', 'color')
-            ->selectRaw('DISTINCT av.value as label, COALESCE(av.code, av.value) as slug, av.hex')
-            ->orderBy('label')
+            ->selectRaw('DISTINCT av.value AS name,
+                 COALESCE(av.code, LOWER(REPLACE(av.value, " ", "-"))) AS slug')
+            ->orderBy('name')
             ->get();
 
         return view('landing.catalog.category', [
