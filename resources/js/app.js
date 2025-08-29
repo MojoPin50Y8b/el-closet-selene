@@ -16,17 +16,13 @@ function debounce(fn, wait = 300) {
 }
 
 function getCsrfToken() {
-  // meta <meta name="csrf-token" content="...">
   const meta = document.querySelector('meta[name="csrf-token"]');
   return meta?.getAttribute('content') ?? '';
 }
 
 async function postJSON(url, payload) {
   const token = getCsrfToken();
-  if (!token) {
-    // evita fallas silenciosas si falta el token
-    throw new Error('CSRF token ausente en <meta name="csrf-token">');
-  }
+  if (!token) throw new Error('CSRF token ausente en <meta name="csrf-token">');
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -41,7 +37,6 @@ async function postJSON(url, payload) {
     const text = await res.text().catch(() => '');
     throw new Error(`Request failed (${res.status}) ${text}`);
   }
-  // algunas acciones devuelven 204 sin body
   try { return await res.json(); } catch { return {}; }
 }
 
@@ -159,10 +154,45 @@ function setupRemoveFromCart() {
   });
 }
 
+/* --------------- mini cart (panel con HTML) --------------- */
+function setupMiniCart() {
+  const root  = document.getElementById('mini-cart-root');
+  const btn   = document.getElementById('mini-cart-btn') || root?.querySelector('a[href$="/carrito"], a[title="Carrito"]');
+  const panel = document.getElementById('mini-cart-panel');
+  if (!root || !btn || !panel) return;
+
+  async function loadMini() {
+    try {
+      const res = await fetch('/cart/mini', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const html = await res.text();
+      panel.innerHTML = html;
+    } catch {}
+  }
+
+  const toggle = async (e) => {
+    // si quieres que el click abra el panel en vez de navegar
+    e.preventDefault();
+    if (panel.classList.contains('hidden')) { await loadMini(); panel.classList.remove('hidden'); }
+    else { panel.classList.add('hidden'); }
+  };
+
+  btn.addEventListener('click', toggle);
+
+  document.addEventListener('click', (e) => {
+    if (!root.contains(e.target)) panel.classList.add('hidden');
+  });
+
+  // Si se actualiza el carrito y el panel está abierto, refrescar
+  window.addEventListener('cart:updated', async () => {
+    if (!panel.classList.contains('hidden')) await loadMini();
+  });
+}
+
 /* ---------------- boot ---------------- */
 document.addEventListener('DOMContentLoaded', () => {
   setupSearchAutocomplete();
   setupCartCount();
   setupAddToCart();
   setupRemoveFromCart();
+  setupMiniCart(); // <- NUEVO
 });
