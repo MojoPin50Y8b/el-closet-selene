@@ -44,7 +44,7 @@ async function postJSON(url, payload) {
 function setupSearchAutocomplete() {
   const input = document.getElementById('search-input');
   const panel = document.getElementById('search-panel');
-  const list  = document.getElementById('search-results');
+  const list = document.getElementById('search-results');
   if (!input || !panel || !list) return;
 
   const close = () => panel.classList.add('hidden');
@@ -98,7 +98,7 @@ async function fetchCartCount() {
     const json = await res.json();
     const el = document.getElementById('cart-count');
     if (el) el.textContent = (json.count ?? 0);
-  } catch {}
+  } catch { }
 }
 function setupCartCount() {
   fetchCartCount();
@@ -114,8 +114,8 @@ function setupAddToCart() {
 
       const url = btn.dataset.url;
       const product_id = Number(btn.dataset.product);
-      let   variant_id = btn.dataset.variant ? Number(btn.dataset.variant) : null;
-      let   qty        = Number(btn.dataset.qty || 1);
+      let variant_id = btn.dataset.variant ? Number(btn.dataset.variant) : null;
+      let qty = Number(btn.dataset.qty || 1);
 
       // opcional: lee selectores si existen
       const vSel = btn.dataset.variantEl ? document.querySelector(btn.dataset.variantEl) : null;
@@ -143,11 +143,13 @@ function setupRemoveFromCart() {
     e.preventDefault();
 
     const url = btn.getAttribute('data-url') || '/cart/remove';
-    const id  = btn.getAttribute('data-id');
+    const id = btn.getAttribute('data-id');
     try {
       await postJSON(url, { id });
       window.notifyCartUpdated();
-      btn.closest('[data-cart-row]')?.remove();
+      const row = btn.closest('[data-cart-row]');
+      if (row) row.remove();
+      recomputeCartTotals(); // ✅ actualizar subtotal/total en la vista
     } catch (err) {
       console.error(err);
     }
@@ -156,8 +158,8 @@ function setupRemoveFromCart() {
 
 /* --------------- mini cart (panel con HTML) --------------- */
 function setupMiniCart() {
-  const root  = document.getElementById('mini-cart-root');
-  const btn   = document.getElementById('mini-cart-btn') || root?.querySelector('a[href$="/carrito"], a[title="Carrito"]');
+  const root = document.getElementById('mini-cart-root');
+  const btn = document.getElementById('mini-cart-btn') || root?.querySelector('a[href$="/carrito"], a[title="Carrito"]');
   const panel = document.getElementById('mini-cart-panel');
   if (!root || !btn || !panel) return;
 
@@ -166,7 +168,7 @@ function setupMiniCart() {
       const res = await fetch('/cart/mini', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       const html = await res.text();
       panel.innerHTML = html;
-    } catch {}
+    } catch { }
   }
 
   const toggle = async (e) => {
@@ -193,6 +195,32 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSearchAutocomplete();
   setupCartCount();
   setupAddToCart();
+  recomputeCartTotals(); 
   setupRemoveFromCart();
   setupMiniCart(); // <- NUEVO
 });
+
+/* --- util de moneda --- */
+function formatMoney(n) {
+  try { return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  catch { return (n || 0).toFixed(2); }
+}
+
+/* --- recalcular totales en la página del carrito --- */
+function recomputeCartTotals() {
+  const lineTotals = Array.from(document.querySelectorAll('.js-line-total'));
+  let subtotal = 0;
+  for (const el of lineTotals) {
+    const unit = Number(el.getAttribute('data-unit') || 0);
+    const qty = Number(el.getAttribute('data-qty') || 0);
+    const line = unit * qty;
+    el.textContent = formatMoney(line);
+    subtotal += line;
+  }
+  const subEl = document.getElementById('js-cart-subtotal');
+  const totEl = document.getElementById('js-cart-total');
+  if (subEl) subEl.textContent = formatMoney(subtotal);
+  if (totEl) totEl.textContent = formatMoney(subtotal);
+}
+
+

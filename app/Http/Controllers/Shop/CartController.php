@@ -21,7 +21,8 @@ class CartController extends Controller
                 'cart_items.product_id',
                 'cart_items.variant_id',
                 'products.name as product_name',
-                'products.slug as product_slug'
+                'products.slug as product_slug',
+                DB::raw('(SELECT url FROM product_images WHERE product_images.product_id = cart_items.product_id LIMIT 1) AS image_url')
             )
             ->join('products', 'products.id', '=', 'cart_items.product_id')
             ->where('cart_items.cart_id', $cartId)
@@ -29,7 +30,8 @@ class CartController extends Controller
 
         $total = $items->reduce(fn($c, $i) => $c + ($i->qty * (float) $i->price), 0.0);
 
-        return view('shop.cart', compact('items', 'total'));
+        // 👉 ahora apunta a tu vista en landing/
+        return view('landing.cart.index', compact('items', 'total'));
     }
 
     /**
@@ -53,13 +55,12 @@ class CartController extends Controller
                 ->first();
             $unit = $v ? ($v->sale_price ?? $v->price ?? 0) : 0;
         } else {
-            // si no viene variante, tomamos la variante más barata del producto
             $v = DB::table('product_variants')
                 ->select('price', 'sale_price')
                 ->where('product_id', $data['product_id'])
                 ->orderByRaw('COALESCE(sale_price, price) asc')
                 ->first();
-            // como último recurso, usa columnas de products si existen
+
             if (!$v) {
                 $p = DB::table('products')->select('price', 'sale_price')
                     ->where('id', $data['product_id'])->first();
@@ -77,7 +78,7 @@ class CartController extends Controller
         if ($row) {
             DB::table('cart_items')->where('id', $row->id)->update([
                 'qty' => (int) $row->qty + (int) $data['qty'],
-                'unit_price' => $row->unit_price ?: $unit, // asegura valor
+                'unit_price' => $row->unit_price ?: $unit,
                 'updated_at' => now(),
             ]);
         } else {
@@ -135,7 +136,8 @@ class CartController extends Controller
 
         $total = $items->reduce(fn($c, $i) => $c + ($i->qty * (float) $i->price), 0.0);
 
-        return view('shop.partials.mini-cart', compact('items', 'total'));
+        // 👉 apunta a tu parcial real en landing/
+        return view('landing.partials.mini-cart', compact('items', 'total'));
     }
 
     public function count(): JsonResponse
@@ -162,7 +164,7 @@ class CartController extends Controller
 
         if (!$id) {
             $id = DB::table('carts')->insertGetId([
-                'user_id' => auth()->id(),  // null si guest
+                'user_id' => auth()->id(),
                 'session_id' => $sessionId,
                 'status' => 'active',
                 'created_at' => now(),
